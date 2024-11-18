@@ -58,6 +58,7 @@ class InertialSquareViewController: UIViewController {
             }
 
             let newSnap = UISnapBehavior(item: viewToAnimate, snapTo: targetLocation)
+            newSnap.damping = 1.5
 
             snap = newSnap
 
