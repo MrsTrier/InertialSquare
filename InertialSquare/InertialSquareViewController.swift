@@ -9,11 +9,24 @@ import UIKit
 
 class InertialSquareViewController: UIViewController {
 
+    private var snap: UISnapBehavior?
+    private var animator: UIDynamicAnimator?
+
     private lazy var viewToAnimate: UIView = {
-        let view = UIImageView(image: UIImage(named: "Otets"))
-        view.clipsToBounds = true
+        let view = UIImageView(image: UIImage(named: "rabbit"))
+
+        view.frame = CGRect(
+            x: self.view.center.x - 50,
+            y: self.view.center.y - 50,
+            width: 100,
+            height: 100
+        )
+
         view.layer.cornerRadius = 100 / 6
-        view.isUserInteractionEnabled = true
+        view.clipsToBounds = true
+
+        view.layer.borderColor = CGColor(gray: 0, alpha: 0.5)
+        view.layer.borderWidth = 1
 
         return view
     }()
@@ -21,54 +34,54 @@ class InertialSquareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-
         view.backgroundColor = .white
-        setupLayout()
-
-        view.addGestureRecognizer(UITapGestureRecognizer(target: self, action:
-                                                            #selector (self.handleTapGesture)))
-    }
-
-    private func setupLayout() {
         view.addSubview(viewToAnimate)
-        viewToAnimate.translatesAutoresizingMaskIntoConstraints = false
 
-        NSLayoutConstraint.activate([
-            viewToAnimate.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            viewToAnimate.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            viewToAnimate.widthAnchor.constraint(equalToConstant: 100),
-            viewToAnimate.heightAnchor.constraint(equalToConstant: 100)
-        ])
-    }
+        animator = UIDynamicAnimator(referenceView: view)
 
-    private func setupAnimator(newDestination: CGPoint, rotationAngle: CGFloat) -> UIViewPropertyAnimator {
-        let animator = UIViewPropertyAnimator(duration: 0.3, curve: .easeInOut) {
-            self.viewToAnimate.transform = CGAffineTransform(rotationAngle: rotationAngle)
-
-            self.viewToAnimate.center = newDestination
-
-        }
-        animator.addCompletion({ [weak self] _ in
-            UIView.animate(withDuration: 0.7, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 1, options: .curveEaseInOut, animations: {
-
-                self?.viewToAnimate.transform = .identity
-            })
-        })
-        return animator
+        view.addGestureRecognizer(
+            UITapGestureRecognizer(
+                target: self,
+                action: #selector(self.handleTapGesture)
+            )
+        )
     }
 
     @objc func handleTapGesture(gesture: UITapGestureRecognizer) {
-        let location = gesture.location(in: view)
+        let tapPoint = gesture.location(in: view)
 
-        var coordinateX = location.x < view.frame.minX + 60 ? 60 : location.x
-        coordinateX = coordinateX > view.frame.maxX - 60 ? view.frame.maxX - 60 : coordinateX
+        let targetLocation = getLocationConsideringBorders(from: tapPoint, ifInsets: 10)
 
-        var coordinateY = location.y < view.safeAreaInsets.top + 50 ? view.safeAreaInsets.top + 50 : location.y
-        coordinateY = coordinateY > view.frame.maxY - 70 ? view.frame.maxY - 70 : coordinateY
+        if let animator {
+            if let snap {
+                animator.removeBehavior(snap)
+            }
 
-        let rotationAngleMultiplier: CGFloat = viewToAnimate.center.x > location.x ? -1 : 1
+            let newSnap = UISnapBehavior(item: viewToAnimate, snapTo: targetLocation)
 
-        let animator = setupAnimator(newDestination: CGPoint(x: coordinateX, y: coordinateY), rotationAngle: rotationAngleMultiplier * CGFloat(Float.pi / 6))
-        animator.startAnimation()
+            snap = newSnap
+
+            animator.addBehavior(newSnap)
+        }
+    }
+
+    private func getLocationConsideringBorders(from tapPoint: CGPoint, ifInsets inset: CGFloat) -> CGPoint {
+        var coordinateX = tapPoint.x < view.frame.minX + 50 + inset
+            ? 50 + inset
+            : tapPoint.x
+
+        coordinateX = coordinateX > view.frame.maxX - 50 - inset
+            ? view.frame.maxX - 50 - inset
+            : coordinateX
+
+        var coordinateY = tapPoint.y < view.frame.minY + 50 + view.safeAreaInsets.top
+            ? view.frame.minY + 50 + view.safeAreaInsets.top
+            : tapPoint.y
+
+        coordinateY = coordinateY > view.frame.maxY - 50 - view.safeAreaInsets.bottom
+            ? view.frame.maxY - 50 - view.safeAreaInsets.bottom
+            : coordinateY
+
+        return CGPoint(x: coordinateX, y: coordinateY)
     }
 }
